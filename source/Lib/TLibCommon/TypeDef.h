@@ -42,19 +42,19 @@
 #define MAX_NUM_THREAD 10
 #define kk_0813 1
 #define algrithm 1
-#define resolution_ratio_transcoding 1
+#define resolution_ratio_transcoding 0
 
 #if algrithm
 #define kk_depth 0
 #define kk_predmode 0
 #define fastcu1   0
-#define fastTU  0
+#define fastTU  1
 #define fastTU1 0//一转多TU算法
 #define fast_mulframe 0
 #define fast_MV 0
 #define fast_MV0 0
 #define fast_sao 0
-#define RRT 1  //分辨率转码算法
+#define RRT 0  //分辨率转码算法
 #endif
 
 #if kk_depth

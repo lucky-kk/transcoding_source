@@ -2408,12 +2408,12 @@ Void
 	UInt&       ruiDistC,
 	Bool        bLumaOnly )
 {
-	UInt    uiDepth        = pcCU->getDepth(0);
-	UInt    uiNumPU        = pcCU->getNumPartitions();
-	UInt    uiInitTrDepth  = pcCU->getPartitionSize(0) == SIZE_2Nx2N ? 0 : 1;
-	UInt    uiWidth        = pcCU->getWidth (0) >> uiInitTrDepth;
-	UInt    uiHeight       = pcCU->getHeight(0) >> uiInitTrDepth;
-	UInt    uiQNumParts    = pcCU->getTotalNumPart() >> 2;
+	UInt    uiDepth        = pcCU->getDepth(0);//!< 当前CU的深度
+	UInt    uiNumPU        = pcCU->getNumPartitions();//!< 当前CU的分割模式，(SIZE_2Nx2N:1, SIZE_2NxN:2, SIZE_Nx2N:2, SIZE_NxN:4 ... )  
+	UInt    uiInitTrDepth  = pcCU->getPartitionSize(0) == SIZE_2Nx2N ? 0 : 1;//!< 用于计算变换的深度，实际深度为该值+uiDepth 
+	UInt    uiWidth        = pcCU->getWidth (0) >> uiInitTrDepth;//!< 当前PU的宽度，如果又分成4个子块，则宽度除以2
+	UInt    uiHeight       = pcCU->getHeight(0) >> uiInitTrDepth;//!< 当前PU的高度，如果又分成4个子块，则高度除以2 
+	UInt    uiQNumParts    = pcCU->getTotalNumPart() >> 2;// 最小的分区是4x4大小的块，这里计算出以该4x4块为单位的分割数，这么做便于计算当前CU的Zorder坐标  
 	UInt    uiWidthBit     = pcCU->getIntraSizeIdx(0);
 	UInt    uiOverallDistY = 0;
 	UInt    uiOverallDistC = 0;
@@ -2431,13 +2431,13 @@ Void
 	}
 
 	//===== loop over partitions =====
-	UInt uiPartOffset = 0;
-	for( UInt uiPU = 0; uiPU < uiNumPU; uiPU++, uiPartOffset += uiQNumParts )
+	UInt uiPartOffset = 0;//!< 用于记录当前PU的Zorder坐标  
+	for( UInt uiPU = 0; uiPU < uiNumPU; uiPU++, uiPartOffset += uiQNumParts )//!< 对当前CU中的每个PU进行遍历
 	{
 		//===== init pattern for luma prediction =====
 		Bool bAboveAvail = false;
 		Bool bLeftAvail  = false;
-		pcCU->getPattern()->initPattern   ( pcCU, uiInitTrDepth, uiPartOffset );
+		pcCU->getPattern()->initPattern   ( pcCU, uiInitTrDepth, uiPartOffset );//!< 主要获取当前PU的邻域可用性，对参考样点进行设置及滤波
 		pcCU->getPattern()->initAdiPattern( pcCU, uiPartOffset, uiInitTrDepth, m_piYuvExt, m_iYuvExtStride, m_iYuvExtHeight, bAboveAvail, bLeftAvail );
 
 		//===== determine set of modes to be tested (using prediction signal only) =====
@@ -2446,9 +2446,9 @@ Void
 		Pel* piPred        = pcPredYuv->getLumaAddr( uiPU, uiWidth );
 		UInt uiStride      = pcPredYuv->getStride();
 		UInt uiRdModeList[FAST_UDI_MAX_RDMODE_NUM];
-		Int numModesForFullRD = g_aucIntraModeNumFast[ uiWidthBit ];
-
-		Bool doFastSearch = (numModesForFullRD != numModesAvailable);
+		Int numModesForFullRD = g_aucIntraModeNumFast[ uiWidthBit ];//!< MPM数目 
+		//!< g_aucIntraModeNumFast[] = {3, 8, 8, 3, 3, 3, 3}; 2x2, 4x4, 8x8, 16x16, 32x32, 64x64, 128x128  
+		Bool doFastSearch = (numModesForFullRD != numModesAvailable);//!< 此处doFastSearch恒为真 
 		if (doFastSearch)
 		{
 			assert(numModesForFullRD < numModesAvailable);
@@ -2459,10 +2459,10 @@ Void
 			}
 			CandNum = 0;
 
-			for( Int modeIdx = 0; modeIdx < numModesAvailable; modeIdx++ )
+			for( Int modeIdx = 0; modeIdx < numModesAvailable; modeIdx++ )//!< 遍历35种帧内预测模式 
 			{
 				UInt uiMode = modeIdx;
-
+				//! 调用亮度帧内预测函数  
 				predIntraLumaAng( pcCU->getPattern(), uiMode, piPred, uiStride, uiWidth, uiHeight, bAboveAvail, bLeftAvail );
 
 				// use hadamard transform here
@@ -2477,9 +2477,9 @@ Void
 
 #if FAST_UDI_USE_MPM
 			Int uiPreds[3] = {-1, -1, -1};
-			Int iMode = -1;
-			Int numCand = pcCU->getIntraDirLumaPredictor( uiPartOffset, uiPreds, &iMode );
-			if( iMode >= 0 )
+			Int iMode = -1;//!< 如果三个MPMs的前两个相同，则iMode=1，否则iMode=2  
+			Int numCand = pcCU->getIntraDirLumaPredictor( uiPartOffset, uiPreds, &iMode ); //!< 获取亮度帧内预测模式的三个MPMs 
+			if( iMode >= 0 )//!< iMode = 1 or 2，因此，numCand会被重新赋值为iMode  
 			{
 				numCand = iMode;
 			}
@@ -2487,7 +2487,7 @@ Void
 			for( Int j=0; j < numCand; j++)
 			{
 				Bool mostProbableModeIncluded = false;
-				Int mostProbableMode = uiPreds[j];
+				Int mostProbableMode = uiPreds[j];//!< 取出MPM  
 
 				for( Int i=0; i < numModesForFullRD; i++)
 				{
